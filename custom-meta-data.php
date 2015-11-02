@@ -13,13 +13,15 @@ function customMetaData_plugin_init()
 	$customMetaData_plugin = new CustomMetaData_plugin();
 	// Add custom data filters.
 	add_filter('json_prepare_post', array( $customMetaData_plugin, 'add_custom_fields_meta' ), 10, 3);
+	add_filter('json_query_vars', array( $customMetaData_plugin, 'my_allow_meta_query' ), 10, 3);
 	add_filter('json_prepare_page', array( $customMetaData_plugin, 'add_custom_fields_meta' ), 10, 3);
 	add_filter('json_prepare_attachment', array( $customMetaData_plugin, 'add_custom_fields_meta' ), 10, 3);
 	add_filter('json_prepare_term', array( $customMetaData_plugin, 'add_custom_taxonomies_meta' ), 10, 2);
 	add_filter('json_prepare_user', array( $customMetaData_plugin, 'add_custom_users_meta' ), 10, 2);
+
+	add_action('init', array($customMetaData_plugin, 'cptui_register_my_cpts') );
 }
 add_action('wp_json_server_before_serve', 'customMetaData_plugin_init');
-
 class CustomMetaData_plugin {
 	/**
 	 * Add custom fields to meta data on a post.
@@ -37,7 +39,6 @@ class CustomMetaData_plugin {
 	    $data['meta'] = array_merge($data['meta'], $customFields);
 	    return $data;
 	}
-
 	/**
 	 * Add custom taxonomies to meta data on a post.
 	 *
@@ -69,5 +70,52 @@ class CustomMetaData_plugin {
 	    $data['meta'] = array_merge($data['meta'], $customUsers);
 	    return $data;
 	}
+
+	public function my_allow_meta_query( $valid_vars ) {
+		$valid_vars = array_merge( $valid_vars, array( 'meta_key', 'meta_value' ) );
+		return $valid_vars;
+	}
+
+	public function cptui_register_my_cpts() {
+	$labels = array(
+		"name" => "GRPosts",
+		"singular_name" => "GRPost",
+		"menu_name" => "My Posts",
+		"all_items" => "All Posts",
+		"add_new" => "Add New",
+		"add_new_item" => "Add New Post",
+		"edit" => "Edit",
+		"edit_item" => "Edit Post",
+		"new_item" => "New Post",
+		"view" => "View",
+		"view_item" => "View Post",
+		"search_items" => "Search Post",
+		"not_found" => "No Posts found",
+		"not_found_in_trash" => "No Posts found in Trash",
+		"parent" => "Parent Post",
+		);
+
+	$args = array(
+		"labels" => $labels,
+		"description" => "Custom GRPost Type",
+		"public" => true,
+		"show_ui" => true,
+		"has_archive" => true,
+		"show_in_menu" => true,
+		"exclude_from_search" => false,
+		"capability_type" => "post",
+		"map_meta_cap" => true,
+		"hierarchical" => false,
+		"rewrite" => array( "slug" => "grpost", "with_front" => true ),
+		"query_var" => true,
+						
+		"taxonomies" => array( "category", "post_tag" )
+	);
+	register_post_type( "grpost", $args );
+
+	// End of cptui_register_my_cpts()
+	}
+
+
 }
 ?>
