@@ -11,18 +11,18 @@ function cptui_register_my_cpts() {
 	$labels = array(
 		"name" => "GRPosts",
 		"singular_name" => "GRPost",
-		"menu_name" => "My Posts",
-		"all_items" => "All Posts",
+		"menu_name" => "My GR Posts",
+		"all_items" => "All GR Posts",
 		"add_new" => "Add New",
-		"add_new_item" => "Add New Post",
+		"add_new_item" => "Add New GR Post",
 		"edit" => "Edit",
-		"edit_item" => "Edit Post",
-		"new_item" => "New Post",
+		"edit_item" => "Edit GR Post",
+		"new_item" => "New GR Post",
 		"view" => "View",
-		"view_item" => "View Post",
-		"search_items" => "Search Post",
-		"not_found" => "No Posts found",
-		"not_found_in_trash" => "No Posts found in Trash",
+		"view_item" => "View GR Post",
+		"search_items" => "Search GR Posts",
+		"not_found" => "No GR Posts found",
+		"not_found_in_trash" => "No GR Posts found in Trash",
 		"parent" => "Parent Post",
 		);
 
@@ -39,7 +39,7 @@ function cptui_register_my_cpts() {
 		"hierarchical" => false,
 		"rewrite" => array( "slug" => "grpost", "with_front" => true ),
 		"query_var" => true,
-						
+		"menu_icon" => 'dashicons-admin-site',
 		"taxonomies" => array( "category", "post_tag" )
 	);
 	register_post_type( "grpost", $args );
