@@ -91,6 +91,11 @@ class CustomMetaData_plugin {
 	public function add_custom_taxonomies_meta($data, $post) {
 	    $customTaxonomies = (array) get_fields($post->taxonomy."_". $post->term_id);
 	    $data['meta'] = array_merge($data['meta'], $customTaxonomies);
+
+	    //Add post tag information to categories
+	    $args = array( 'categories' => $data['ID']);
+		$tags = $this->get_category_tags($args);
+		$data['post_tags'] = $tags;
 	    return $data;
 	}
 	
@@ -113,6 +118,37 @@ class CustomMetaData_plugin {
 	public function my_allow_meta_query( $valid_vars ) {
 		$valid_vars = array_merge( $valid_vars, array( 'meta_key', 'meta_value' ) );
 		return $valid_vars;
+	}
+
+	private function get_category_tags($args)
+	{
+		global $wpdb;
+		$tags = $wpdb->get_results
+		("
+			SELECT DISTINCT terms2.term_id as tag_id, terms2.name as tag_name, null as tag_link, t2.count as tag_count
+			FROM
+				wp_posts as p1
+				LEFT JOIN wp_term_relationships as r1 ON p1.ID = r1.object_ID
+				LEFT JOIN wp_term_taxonomy as t1 ON r1.term_taxonomy_id = t1.term_taxonomy_id
+				LEFT JOIN wp_terms as terms1 ON t1.term_id = terms1.term_id,
+
+				wp_posts as p2
+				LEFT JOIN wp_term_relationships as r2 ON p2.ID = r2.object_ID
+				LEFT JOIN wp_term_taxonomy as t2 ON r2.term_taxonomy_id = t2.term_taxonomy_id
+				LEFT JOIN wp_terms as terms2 ON t2.term_id = terms2.term_id
+			WHERE
+				t1.taxonomy = 'category' AND p1.post_status = 'publish' AND terms1.term_id IN (".$args['categories'].") AND
+				t2.taxonomy = 'post_tag' AND p2.post_status = 'publish'
+				AND p1.ID = p2.ID
+			ORDER by tag_count DESC
+		");
+
+		$count = 0;
+		foreach ($tags as $tag) {
+			$tags[$count]->tag_link = get_tag_link($tag->tag_id);
+			$count++;
+		}
+		return $tags;
 	}
 }
 ?>
