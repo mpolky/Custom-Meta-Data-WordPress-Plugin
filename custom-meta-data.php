@@ -125,7 +125,7 @@ class CustomMetaData_plugin {
 		global $wpdb;
 		$tags = $wpdb->get_results
 		("
-			SELECT DISTINCT terms2.term_id as tag_id, terms2.name as tag_name, null as tag_link, t2.count as tag_count
+			SELECT DISTINCT terms2.term_id as ID, terms2.name as name, null as link, t2.count as count, terms2.slug
 			FROM
 				wp_posts as p1
 				LEFT JOIN wp_term_relationships as r1 ON p1.ID = r1.object_ID
