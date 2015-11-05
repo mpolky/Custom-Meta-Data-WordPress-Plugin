@@ -25,7 +25,6 @@ function cptui_register_my_cpts() {
 		"not_found_in_trash" => "No GR Posts found in Trash",
 		"parent" => "Parent Post",
 		);
-
 	$args = array(
 		"labels" => $labels,
 		"description" => "Custom GRPost Type",
@@ -43,11 +42,9 @@ function cptui_register_my_cpts() {
 		"taxonomies" => array( "category", "post_tag" )
 	);
 	register_post_type( "grpost", $args );
-
 	// End of cptui_register_my_cpts()
 }
 add_action('init', 'cptui_register_my_cpts');
-
 function customMetaData_plugin_init()
 {
 	global $customMetaData_plugin;
@@ -91,7 +88,6 @@ class CustomMetaData_plugin {
 	public function add_custom_taxonomies_meta($data, $post) {
 	    $customTaxonomies = (array) get_fields($post->taxonomy."_". $post->term_id);
 	    $data['meta'] = array_merge($data['meta'], $customTaxonomies);
-
 	    //Add post tag information to categories
 	    $args = array( 'categories' => $data['ID']);
 		$tags = $this->get_category_tags($args);
@@ -114,24 +110,21 @@ class CustomMetaData_plugin {
 	    $data['meta'] = array_merge($data['meta'], $customUsers);
 	    return $data;
 	}
-
 	public function my_allow_meta_query( $valid_vars ) {
 		$valid_vars = array_merge( $valid_vars, array( 'meta_key', 'meta_value' ) );
 		return $valid_vars;
 	}
-
 	private function get_category_tags($args)
 	{
 		global $wpdb;
 		$tags = $wpdb->get_results
 		("
-			SELECT DISTINCT terms2.term_id as ID, terms2.name as name, null as link, t2.count as count, terms2.slug
+			SELECT DISTINCT terms2.term_id as ID, terms2.name as name, t2.count as tag_count, terms2.slug as slug
 			FROM
 				wp_posts as p1
 				LEFT JOIN wp_term_relationships as r1 ON p1.ID = r1.object_ID
 				LEFT JOIN wp_term_taxonomy as t1 ON r1.term_taxonomy_id = t1.term_taxonomy_id
 				LEFT JOIN wp_terms as terms1 ON t1.term_id = terms1.term_id,
-
 				wp_posts as p2
 				LEFT JOIN wp_term_relationships as r2 ON p2.ID = r2.object_ID
 				LEFT JOIN wp_term_taxonomy as t2 ON r2.term_taxonomy_id = t2.term_taxonomy_id
@@ -142,12 +135,6 @@ class CustomMetaData_plugin {
 				AND p1.ID = p2.ID
 			ORDER by tag_count DESC
 		");
-
-		$count = 0;
-		foreach ($tags as $tag) {
-			$tags[$count]->tag_link = get_tag_link($tag->tag_id);
-			$count++;
-		}
 		return $tags;
 	}
 }
