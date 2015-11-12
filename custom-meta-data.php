@@ -8,8 +8,14 @@ License: GPL2
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 */ 
 
+add_action('init', 'limit_editor_capabilities');
 add_action('init', 'cptui_register_grpost');
 add_action('init', 'cptui_register_promotion');
+
+function limit_editor_capabilities() {
+	$role = get_role('editor');
+	$role->remove_cap('manage_categories');
+}
 
 function cptui_register_grpost() {
 	$labels = array(
