@@ -7,7 +7,11 @@ Author: Matt Polky
 License: GPL2
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 */ 
-function cptui_register_my_cpts() {
+
+add_action('init', 'cptui_register_grpost');
+add_action('init', 'cptui_register_promotion');
+
+function cptui_register_grpost() {
 	$labels = array(
 		"name" => "GRPosts",
 		"singular_name" => "GRPost",
@@ -42,9 +46,45 @@ function cptui_register_my_cpts() {
 		"taxonomies" => array( "category", "post_tag" )
 	);
 	register_post_type( "grpost", $args );
-	// End of cptui_register_my_cpts()
 }
-add_action('init', 'cptui_register_my_cpts');
+
+function cptui_register_promotion() {	
+	$labels = array(
+		"name" => "Promotion",
+		"singular_name" => "Promotion",
+		"menu_name" => "Promotions",
+		"all_items" => "All Promotion",
+		"add_new" => "Add New",
+		"add_new_item" => "Add New Promotion",
+		"edit" => "Edit",
+		"edit_item" => "Edit Promotion",
+		"new_item" => "New Promotion",
+		"view" => "View",
+		"view_item" => "View Promotion",
+		"search_items" => "Search Promotions",
+		"not_found" => "No promotions found",
+		"not_found_in_trash" => "No promotions found in Trash",
+		"parent" => "Parent Promotion",
+		);
+	$args = array(
+		"labels" => $labels,
+		"description" => "Promotion for PX",
+		"public" => true,
+		"show_ui" => true,
+		"has_archive" => true,
+		"show_in_menu" => true,
+		"exclude_from_search" => false,
+		"capability_type" => "post",
+		"map_meta_cap" => true,
+		"hierarchical" => false,
+		"rewrite" => array( "slug" => "promotion", "with_front" => true ),
+		"query_var" => true,
+		"menu_icon" => 'dashicons-admin-site',
+		"taxonomies" => array( "category" )
+	);
+	register_post_type( "promotion", $args );
+}
+
 function customMetaData_plugin_init()
 {
 	global $customMetaData_plugin;
