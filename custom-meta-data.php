@@ -11,6 +11,7 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 add_action('init', 'limit_editor_capabilities');
 add_action('init', 'cptui_register_grpost');
 add_action('init', 'cptui_register_promotion');
+add_action('init', 'cptui_register_agent');
 
 function limit_editor_capabilities() {
 	$role = get_role('editor');
@@ -58,7 +59,7 @@ function cptui_register_promotion() {
 	$labels = array(
 		"name" => "Promotion",
 		"singular_name" => "Promotion",
-		"menu_name" => "Promotions",
+		"menu_name" => "My Promotions",
 		"all_items" => "All Promotion",
 		"add_new" => "Add New",
 		"add_new_item" => "Add New Promotion",
@@ -85,10 +86,47 @@ function cptui_register_promotion() {
 		"hierarchical" => false,
 		"rewrite" => array( "slug" => "promotion", "with_front" => true ),
 		"query_var" => true,
-		"menu_icon" => 'dashicons-admin-site',
+		"menu_icon" => 'dashicons-megaphone',
 		"taxonomies" => array( "category" )
 	);
 	register_post_type( "promotion", $args );
+}
+
+function cptui_register_agent() {
+	$labels = array(
+		"name" => "Agent",
+		"singular_name" => "Agent",
+		"menu_name" => "My Agents",
+		"all_items" => "All Agents",
+		"add_new" => "Add New",
+		"add_new_item" => "Add New Agent",
+		"edit" => "Edit",
+		"edit_item" => "Edit Agent",
+		"new_item" => "New Agent",
+		"view" => "View",
+		"view_item" => "View Agent",
+		"search_items" => "Search Agents",
+		"not_found" => "No Agents found",
+		"not_found_in_trash" => "No Agents found in Trash",
+		"parent" => "Parent Agent",
+		);
+	$args = array(
+		"labels" => $labels,
+		"description" => "Agent for PX",
+		"public" => true,
+		"show_ui" => true,
+		"has_archive" => true,
+		"show_in_menu" => true,
+		"exclude_from_search" => false,
+		"capability_type" => "post",
+		"map_meta_cap" => true,
+		"hierarchical" => false,
+		"rewrite" => array( "slug" => "agent", "with_front" => true ),
+		"query_var" => true,
+		"menu_icon" => 'dashicons-businessman',
+		"taxonomies" => array( "category" )
+	);
+	register_post_type( "agent", $args );
 }
 
 function customMetaData_plugin_init()
@@ -160,6 +198,7 @@ class CustomMetaData_plugin {
 		$valid_vars = array_merge( $valid_vars, array( 'meta_key', 'meta_value' ) );
 		return $valid_vars;
 	}
+
 	private function get_category_tags($args)
 	{
 		global $wpdb;
