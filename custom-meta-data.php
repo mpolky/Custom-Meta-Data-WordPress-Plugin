@@ -6,7 +6,121 @@ Version: 1.0
 Author: Matt Polky
 License: GPL2
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-*/ 
+*/
+
+function grpost_api_init() {
+	global $grpost_api;
+
+	$grpost_api = new GrPost_Api();
+	add_filter( 'json_endpoints', array( $grpost_api, 'register_routes' ) );
+}
+
+add_action( 'wp_json_server_before_serve', 'grpost_api_init' );
+
+class GrPost_Api {
+	public function register_routes( $routes ) {
+		$routes['/grposts'] = array(
+			array( array( $this, 'get_posts'), WP_JSON_Server::READABLE )
+		);
+
+		return $routes;
+	}
+
+	private function get_term_id($slug, $taxonomy) {
+		global $wpdb;
+
+		if (!is_string($slug) || !is_string($taxonomy)) {
+			return NULL;
+		}
+		$row = $wpdb->get_col($wpdb->prepare(
+			"SELECT a.term_id
+			FROM wp_terms a JOIN wp_term_taxonomy b ON a.term_id = b.term_id
+			WHERE a.slug = %s AND b.taxonomy = %s;", $slug, $taxonomy));
+		if (count($row) == 1 && ctype_digit($row[0])) {
+			return intval($row[0]);
+		}
+		return NULL;
+	}
+
+	public function get_posts($format = NULL, $tag = NULL, $category = NULL, $page = 1, $count = 10) {
+		global $wpdb;
+
+		$page_start_index = ($page - 1) * $count;
+
+		$formatFilter = NULL;
+
+		if (is_string($format)) {
+			$format = strtolower($format);
+			if (in_array($format, array('watch', 'read', 'listen', 'download'))) {
+				$formatFilter = " AND format.meta_value = '$format'";
+			} else {
+				return array();
+			}			
+		}
+
+		$termFilter = '';
+
+		$tagId = $this->get_term_id($tag, 'post_tag');
+		if ($tagId == NULL && $tag != NULL) {
+			return array();
+		}
+		if ($tagId != NULL) {
+			$termFilter = "$termFilter INNER JOIN wp_term_relationships rel on grpost.ID = rel.object_id AND rel.term_taxonomy_id = $tagId";
+		}
+
+		$categoryId = $this->get_term_id($category, 'category');
+		if ($categoryId == NULL && $category != NULL) {
+			return array();
+		}
+		if ($categoryId != NULL) {
+			$termFilter = "$termFilter INNER JOIN wp_term_relationships rel on grpost.ID = rel.object_id AND rel.term_taxonomy_id = $categoryId";
+		}
+
+		$sql = $wpdb->prepare(
+			"SELECT grpost.*, GROUP_CONCAT(tax.term_taxonomy_id) AS CategoryIdList
+			FROM (SELECT grpost.ID AS PostId,
+					grpost.post_title AS Title,
+					CASE
+						WHEN agent.meta_value = 'null' OR agent.meta_value IS NULL THEN NULL
+						ELSE agent.meta_value
+					END AS AgentId,
+					excerpt.meta_value AS Excerpt,
+					grpost.post_date AS PostDateUtc,
+					grpost.post_name AS Slug,
+					url.meta_value AS Url,
+					format.meta_value AS Format,
+					thumbnail_post.guid AS ThumbnailImageUrl
+				FROM wp_posts grpost
+					LEFT JOIN wp_postmeta agent on grpost.ID = agent.post_id AND agent.meta_key = 'agent'
+					LEFT JOIN wp_postmeta excerpt on grpost.ID = excerpt.post_id AND excerpt.meta_key = 'excerpt'
+					LEFT JOIN wp_postmeta url on grpost.ID = url.post_id AND url.meta_key = 'url'
+					LEFT JOIN wp_postmeta format on grpost.ID = format.post_id AND format.meta_key = 'format'
+					LEFT JOIN wp_postmeta thumbnail_image on grpost.ID = thumbnail_image.post_id AND thumbnail_image.meta_key = 'thumbnail_image'
+					LEFT JOIN wp_posts thumbnail_post ON thumbnail_post.ID = CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(thumbnail_image.meta_value, ':', -1), '}', 1) AS SIGNED)
+					$termFilter
+				WHERE grpost.post_type = 'grpost' AND grpost.post_status = 'publish' $formatFilter
+				ORDER BY agentId DESC, grpost.post_date DESC
+				LIMIT %d, %d
+			) grpost
+				LEFT JOIN wp_term_relationships rel on grpost.PostId = rel.object_id
+				LEFT JOIN wp_term_taxonomy tax on rel.term_taxonomy_id = tax.term_taxonomy_id
+			WHERE tax.taxonomy = 'category'
+			GROUP BY PostId
+			ORDER BY grpost.AgentId DESC, grpost.PostDateUtc DESC", $page_start_index, $count);
+
+		$results = $wpdb->get_results($sql, OBJECT);
+
+		foreach($results as $result)
+		{
+			$result->PostId = intval($result->PostId);
+			$result->AgentId = intval($result->AgentId);
+			$result->Categories = array_map(intval, explode(',', $result->CategoryIdList));
+			unset($result->CategoryIdList);
+		}
+
+		return $results;
+	}
+}
 
 add_action('init', 'limit_editor_capabilities');
 add_action('init', 'cptui_register_grpost');
