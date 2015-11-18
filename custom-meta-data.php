@@ -77,8 +77,10 @@ class GrPost_Api {
 		}
 
 		$sql = $wpdb->prepare(
-			"SELECT grpost.*, GROUP_CONCAT(tax.term_taxonomy_id) AS CategoryIdList
+			"SELECT grpost.*, 
+			GROUP_CONCAT(tax.term_taxonomy_id) AS CategoryIdList
 			FROM (SELECT grpost.ID AS PostId,
+					users.display_name as Author,
 					grpost.post_title AS Title,
 					CASE
 						WHEN agent.meta_value = 'null' OR agent.meta_value IS NULL THEN NULL
@@ -91,6 +93,7 @@ class GrPost_Api {
 					format.meta_value AS Format,
 					thumbnail_post.guid AS ThumbnailImageUrl
 				FROM wp_posts grpost
+					LEFT JOIN wp_users users on grpost.post_author = users.ID
 					LEFT JOIN wp_postmeta agent on grpost.ID = agent.post_id AND agent.meta_key = 'agent'
 					LEFT JOIN wp_postmeta excerpt on grpost.ID = excerpt.post_id AND excerpt.meta_key = 'excerpt'
 					LEFT JOIN wp_postmeta url on grpost.ID = url.post_id AND url.meta_key = 'url'
