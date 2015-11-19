@@ -91,7 +91,11 @@ class GrPost_Api {
 					grpost.post_name AS Slug,
 					url.meta_value AS Url,
 					format.meta_value AS Format,
-					thumbnail_post.guid AS ThumbnailImageUrl
+					thumbnail_post.guid AS ThumbnailImageUrl,
+					CASE
+						WHEN agent.meta_value = 'null' OR agent.meta_value IS NULL THEN UNIX_TIMESTAMP(grpost.post_date) * .3
+						ELSE UNIX_TIMESTAMP(grpost.post_date)
+					END AS Rank
 				FROM wp_posts grpost
 					LEFT JOIN wp_users users on grpost.post_author = users.ID
 					LEFT JOIN wp_postmeta agent on grpost.ID = agent.post_id AND agent.meta_key = 'agent'
@@ -102,14 +106,14 @@ class GrPost_Api {
 					LEFT JOIN wp_posts thumbnail_post ON thumbnail_post.ID = CAST(REPLACE(SUBSTRING_INDEX(SUBSTRING_INDEX(thumbnail_image.meta_value, ':', -1), '}', 1), '\"', '') AS SIGNED)
 					$termFilter
 				WHERE grpost.post_type = 'grpost' AND grpost.post_status = 'publish' $formatFilter
-				ORDER BY agentId DESC, grpost.post_date DESC
+				ORDER BY Rank DESC
 				LIMIT %d, %d
 			) grpost
 				LEFT JOIN wp_term_relationships rel on grpost.PostId = rel.object_id
 				LEFT JOIN wp_term_taxonomy tax on rel.term_taxonomy_id = tax.term_taxonomy_id
 			WHERE tax.taxonomy = 'category'
 			GROUP BY PostId
-			ORDER BY grpost.AgentId DESC, grpost.PostDateUtc DESC", $page_start_index, $count);
+			ORDER BY grpost.Rank DESC", $page_start_index, $count);
 
 		$results = $wpdb->get_results($sql, OBJECT);
 
