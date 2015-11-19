@@ -99,7 +99,7 @@ class GrPost_Api {
 					LEFT JOIN wp_postmeta url on grpost.ID = url.post_id AND url.meta_key = 'url'
 					LEFT JOIN wp_postmeta format on grpost.ID = format.post_id AND format.meta_key = 'format'
 					LEFT JOIN wp_postmeta thumbnail_image on grpost.ID = thumbnail_image.post_id AND thumbnail_image.meta_key = 'thumbnail_image'
-					LEFT JOIN wp_posts thumbnail_post ON thumbnail_post.ID = CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(thumbnail_image.meta_value, ':', -1), '}', 1) AS SIGNED)
+					LEFT JOIN wp_posts thumbnail_post ON thumbnail_post.ID = CAST(REPLACE(SUBSTRING_INDEX(SUBSTRING_INDEX(thumbnail_image.meta_value, ':', -1), '}', 1), '\"', '') AS SIGNED)
 					$termFilter
 				WHERE grpost.post_type = 'grpost' AND grpost.post_status = 'publish' $formatFilter
 				ORDER BY agentId DESC, grpost.post_date DESC
