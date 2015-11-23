@@ -22,18 +22,20 @@ class GrPost_Api {
 		$routes['/grposts'] = array(
 			array( array( $this, 'get_posts'), WP_JSON_Server::READABLE )
 		);
-
+		$routes['/grposts/(?P<slug>.+)/related'] = array(
+			array( array( $this, 'get_related_posts'), WP_JSON_Server::READABLE )
+		);
 		return $routes;
 	}
 
-	private function get_term_id($slug, $taxonomy) {
+	private function get_term_taxonomy_id($slug, $taxonomy) {
 		global $wpdb;
 
 		if (!is_string($slug) || !is_string($taxonomy)) {
 			return NULL;
 		}
 		$row = $wpdb->get_col($wpdb->prepare(
-			"SELECT a.term_id
+			"SELECT b.term_taxonomy_id
 			FROM wp_terms a JOIN wp_term_taxonomy b ON a.term_id = b.term_id
 			WHERE a.slug = %s AND b.taxonomy = %s;", $slug, $taxonomy));
 		if (count($row) == 1 && ctype_digit($row[0])) {
@@ -42,7 +44,50 @@ class GrPost_Api {
 		return NULL;
 	}
 
-	public function get_posts($format = NULL, $tag = NULL, $category = NULL, $page = 1, $count = 10) {
+	public function get_related_posts($slug) {
+		global $wpdb;
+		$post = $wpdb->get_row($wpdb->prepare("SELECT ID FROM wp_posts WHERE post_type = 'grpost' AND post_name = %s", $slug), OBJECT);
+		if ($post == NULL) {
+			return array();
+		}
+		$post_id = intval($post->ID);
+		$sql = $wpdb->prepare(
+		"SELECT ID,
+			post_title,
+			SUM(CASE WHEN c.taxonomy = 'category' THEN 1 ELSE 0 END) share_category,
+			SUM(CASE WHEN c.taxonomy = 'post_tag' THEN 1 ELSE 0 END) share_tag,
+			SUM(CASE WHEN c.taxonomy = 'category' THEN 1 ELSE 0 END) * 9 + SUM(CASE WHEN c.taxonomy = 'post_tag' THEN 1 ELSE 0 END) * 3 score
+		FROM wp_posts a
+			JOIN wp_term_relationships b ON a.ID = b.object_id
+			JOIN wp_term_taxonomy c ON c.term_taxonomy_id = b.term_taxonomy_id
+			JOIN wp_terms d ON d.term_id = c.term_id
+		WHERE post_status = 'publish' AND post_type = 'grpost' AND ID <> %d
+			AND (c.term_taxonomy_id IN (
+				SELECT a.term_taxonomy_id
+				FROM wp_term_relationships a
+					JOIN wp_term_taxonomy b ON a.term_taxonomy_id = b.term_taxonomy_id
+				WHERE b.taxonomy = 'category' AND b.parent = 0 AND object_id = %d)
+			OR c.term_taxonomy_id IN (
+				SELECT a.term_taxonomy_id
+				FROM wp_term_relationships a
+					JOIN wp_term_taxonomy b ON a.term_taxonomy_id = b.term_taxonomy_id
+				WHERE b.taxonomy = 'post_tag' AND object_id = %d)
+			)
+		GROUP BY ID, post_title
+		HAVING share_category > 0
+		ORDER BY share_category DESC, share_tag DESC, ID;", $post_id, $post_id, $post_id);
+
+	$results = $wpdb->get_results($sql, OBJECT);
+
+	$related = array();
+	for ($i = 0; $i < count($results) && $i < 4; $i++) {
+		$related[$i] = $results[$i]->ID;
+	}
+
+	return $this->get_posts(NULL, NULL, NULL, $related);
+	}
+
+	public function get_posts($format = NULL, $tag = NULL, $category = NULL, $id = NULL, $page = 0, $count = 10) {
 		global $wpdb;
 
 		$page_start_index = ($page - 1) * $count;
@@ -60,7 +105,7 @@ class GrPost_Api {
 
 		$termFilter = '';
 
-		$tagId = $this->get_term_id($tag, 'post_tag');
+		$tagId = $this->get_term_taxonomy_id($tag, 'post_tag');
 		if ($tagId == NULL && $tag != NULL) {
 			return array();
 		}
@@ -68,12 +113,30 @@ class GrPost_Api {
 			$termFilter = "$termFilter INNER JOIN wp_term_relationships rel on grpost.ID = rel.object_id AND rel.term_taxonomy_id = $tagId";
 		}
 
-		$categoryId = $this->get_term_id($category, 'category');
+		$categoryId = $this->get_term_taxonomy_id($category, 'category');
 		if ($categoryId == NULL && $category != NULL) {
 			return array();
 		}
 		if ($categoryId != NULL) {
 			$termFilter = "$termFilter INNER JOIN wp_term_relationships rel on grpost.ID = rel.object_id AND rel.term_taxonomy_id = $categoryId";
+		}
+		
+		$idFilter = '';
+		if ($id != NULL && is_array($id)) {
+			for ($i = 0; $i < count($id); $i++) {
+				if (ctype_digit($id[$i])) {
+					if ($idFilter == '') {
+						$idFilter = " AND grpost.ID IN ( ";
+					}
+					$idFilter .= intval($id[$i]) . ", ";
+				}
+			}
+			if ($idFilter != '') {
+				$idFilter = substr($idFilter, 0, -2) . " )";
+			}
+		}
+		if ($id != NULL && ctype_digit($id)) {
+			$idFilter = " AND grpost.ID = " . intval($id);
 		}
 
 		$sql = $wpdb->prepare(
@@ -105,7 +168,7 @@ class GrPost_Api {
 					LEFT JOIN wp_postmeta thumbnail_image on grpost.ID = thumbnail_image.post_id AND thumbnail_image.meta_key = 'thumbnail_image'
 					LEFT JOIN wp_posts thumbnail_post ON thumbnail_post.ID = CAST(REPLACE(SUBSTRING_INDEX(SUBSTRING_INDEX(thumbnail_image.meta_value, ':', -1), '}', 1), '\"', '') AS SIGNED)
 					$termFilter
-				WHERE grpost.post_type = 'grpost' AND grpost.post_status = 'publish' $formatFilter
+				WHERE grpost.post_type = 'grpost' AND grpost.post_status = 'publish' $formatFilter $idFilter
 				ORDER BY Rank DESC
 				LIMIT %d, %d
 			) grpost
@@ -340,6 +403,7 @@ class CustomMetaData_plugin {
 				t2.taxonomy = 'post_tag' AND p2.post_status = 'publish'
 				AND p1.ID = p2.ID
 			ORDER by tag_count DESC
+			LIMIT 10
 		");
 		return $tags;
 	}
