@@ -25,6 +25,9 @@ class GrPost_Api {
 		$routes['/grposts/(?P<slug>.+)/related'] = array(
 			array( array( $this, 'get_related_posts'), WP_JSON_Server::READABLE )
 		);
+		$routes['/promotions'] = array(
+			array( array( $this, 'get_promotions'), WP_JSON_Server::READABLE )
+		);
 		return $routes;
 	}
 
@@ -51,6 +54,7 @@ class GrPost_Api {
 			return array();
 		}
 		$post_id = intval($post->ID);
+
 		$sql = $wpdb->prepare(
 		"SELECT ID,
 			post_title,
@@ -87,7 +91,63 @@ class GrPost_Api {
 	return $this->get_posts(NULL, NULL, NULL, $related);
 	}
 
-	public function get_posts($format = NULL, $tag = NULL, $category = NULL, $id = NULL, $page = 0, $count = 10) {
+	public function get_promotions() {
+		global $wpdb;
+
+		$sql = $wpdb->prepare(
+			"SELECT grpost.*, 
+			GROUP_CONCAT(tax.term_taxonomy_id) AS CategoryIdList
+			FROM (SELECT grpost.ID,
+					grpost.post_title AS Title,
+					url.meta_value AS url,
+					grpost.post_content as content,
+					thumbnail_post.guid AS featuredImage
+				FROM wp_posts grpost
+					LEFT JOIN wp_postmeta url on grpost.ID = url.post_id AND url.meta_key = 'url'
+					LEFT JOIN wp_postmeta thumbnail_image on grpost.ID = thumbnail_image.post_id AND thumbnail_image.meta_key = 'featured_image'
+					LEFT JOIN wp_posts thumbnail_post ON thumbnail_post.ID = CAST(REPLACE(SUBSTRING_INDEX(SUBSTRING_INDEX(thumbnail_image.meta_value, ':', -1), '}', 1), '\"', '') AS SIGNED)
+				WHERE grpost.post_type = 'promotion' AND grpost.post_status = 'publish'
+			) grpost
+				LEFT JOIN wp_term_relationships rel on grpost.ID = rel.object_id
+				LEFT JOIN wp_term_taxonomy tax on rel.term_taxonomy_id = tax.term_taxonomy_id
+			WHERE tax.taxonomy = 'category'
+			GROUP BY ID");
+
+		$results = $wpdb->get_results($sql, OBJECT);
+
+		foreach($results as $result)
+		{
+			$categoryList = array_map(intval, explode(',', $result->CategoryIdList));
+			$result->ID = intval($result->ID);
+			
+			$result->terms = new stdClass();
+			$result->terms->category = array();
+
+			$result->meta = new stdClass();
+			$result->meta->url = $result->url;
+			$result->meta->featured_image = $result->featuredImage;
+
+			unset($result->CategoryIdList);
+			unset($result->featuredImage);
+			unset($result->url);
+
+			foreach($categoryList as $categoryId)
+			{
+				$category = get_category($categoryId);
+				$categoryObject = (object) array();
+				$categoryObject->ID = $category->term_id;
+				$categoryObject->name = $category->name;
+				$categoryObject->description = $category->description;
+				$categoryObject->slug = $category->slug;
+				array_push($result->terms->category, $categoryObject);
+			}
+
+		}
+
+		return $results;
+	}
+
+	public function get_posts($format = NULL, $tag = NULL, $category = NULL, $id = NULL, $page = 1, $count = 10) {
 		global $wpdb;
 
 		$page_start_index = ($page - 1) * $count;
