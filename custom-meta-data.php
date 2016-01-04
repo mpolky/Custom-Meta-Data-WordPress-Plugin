@@ -256,6 +256,7 @@ add_action('init', 'limit_editor_capabilities');
 add_action('init', 'cptui_register_grpost');
 add_action('init', 'cptui_register_promotion');
 add_action('init', 'cptui_register_agent');
+add_action('init', 'cptui_register_course');
 
 function limit_editor_capabilities() {
 	$role = get_role('editor');
@@ -371,6 +372,43 @@ function cptui_register_agent() {
 		"taxonomies" => array( "category" )
 	);
 	register_post_type( "agent", $args );
+}
+
+function cptui_register_course() {
+	$labels = array(
+		"name" => "Course",
+		"singular_name" => "Course",
+		"menu_name" => "My Courses",
+		"all_items" => "All Courses",
+		"add_new" => "Add New",
+		"add_new_item" => "Add New Course",
+		"edit" => "Edit",
+		"edit_item" => "Edit Course",
+		"new_item" => "New Course",
+		"view" => "View",
+		"view_item" => "View Course",
+		"search_items" => "Search Courses",
+		"not_found" => "No Courses found",
+		"not_found_in_trash" => "No Courses found in Trash",
+		"parent" => "Parent Course",
+		);
+	$args = array(
+		"labels" => $labels,
+		"description" => "Course for PX",
+		"public" => true,
+		"show_ui" => true,
+		"has_archive" => true,
+		"show_in_menu" => true,
+		"exclude_from_search" => false,
+		"capability_type" => "post",
+		"map_meta_cap" => true,
+		"hierarchical" => false,
+		"rewrite" => array( "slug" => "course", "with_front" => true ),
+		"query_var" => true,
+		"menu_icon" => 'dashicons-book',
+		"taxonomies" => array( "category" )
+	);
+	register_post_type( "course", $args );
 }
 
 function customMetaData_plugin_init()
