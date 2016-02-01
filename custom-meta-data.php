@@ -99,6 +99,7 @@ class GrPost_Api {
 			GROUP_CONCAT(tax.term_taxonomy_id) AS CategoryIdList
 			FROM (SELECT grpost.ID,
 					grpost.post_title AS Title,
+					grpost.post_date as PostDateUtc,
 					url.meta_value AS url,
 					grpost.post_content as content,
 					thumbnail_post.guid AS featuredImage
@@ -111,7 +112,8 @@ class GrPost_Api {
 				LEFT JOIN wp_term_relationships rel on grpost.ID = rel.object_id
 				LEFT JOIN wp_term_taxonomy tax on rel.term_taxonomy_id = tax.term_taxonomy_id
 			WHERE tax.taxonomy = 'category'
-			GROUP BY ID");
+			GROUP BY ID
+			ORDER BY PostDateUtc desc");
 
 		$results = $wpdb->get_results($sql, OBJECT);
 
